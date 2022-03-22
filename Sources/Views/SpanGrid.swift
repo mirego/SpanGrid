@@ -43,6 +43,8 @@ public struct SpanGrid<Content: View, Data: Identifiable & SpanGridSizeInfoProvi
     @ObservedObject var keyboardNavigationCoordinator = SpanGridKeyboardNavigation<Content, Data>()
     @ObservedObject var rowHeightStorage: SpanGridRowHeightStorage
     
+    @State var width: CGFloat = 0
+    
     let widthChangePublisher = SpanGridWidthListener.getPublisher()
     
     /*
@@ -86,50 +88,50 @@ public struct SpanGrid<Content: View, Data: Identifiable & SpanGridSizeInfoProvi
     }
     
     public var body: some View {
-        GeometryReader { proxy in
-            let columnSizeResult = columnSizeStrategy.calculateResult(
-                width: proxy.size.width,
-                traits: buildTraitCollection()
-            )
-            
-            let columns: [GridItem] = .init(
-                repeating: GridItem(
-                    .fixed(columnSizeResult.tileWidth),
-                    spacing: columnSizeResult.interitemSpacing,
-                    alignment: .topLeading
-                ),
-                count: columnSizeResult.columnCount
-            )
-            
-            ScrollView {
-                LazyVGrid(
-                    columns: columns,
-                    alignment: .center,
-                    spacing: columnSizeResult.interitemSpacing
-                ) {
-                    ForEach(data) { viewModel in
-                        createSpanView(
-                            viewModel: viewModel,
-                            columnSizeResult: columnSizeResult
-                        )
-                    }
-                }
-                .padding(.vertical, verticalPadding)
+        let columnSizeResult = columnSizeStrategy.calculateResult(
+            width: width,
+            traits: buildTraitCollection()
+        )
+        
+        let columns: [GridItem] = .init(
+            repeating: GridItem(
+                .fixed(columnSizeResult.tileWidth),
+                spacing: columnSizeResult.interitemSpacing,
+                alignment: .topLeading
+            ),
+            count: columnSizeResult.columnCount
+        )
+        
+        LazyVGrid(
+            columns: columns,
+            alignment: .center,
+            spacing: columnSizeResult.interitemSpacing
+        ) {
+            ForEach(data) { viewModel in
+                createSpanView(
+                    viewModel: viewModel,
+                    columnSizeResult: columnSizeResult
+                )
             }
-            .onPreferenceChange(SpanGridRowPreferenceKey.self, perform: rowHeightStorage.set)
-            .onReceive(widthChangePublisher) { _ in rowHeightStorage.clear() }
-            #if os(iOS)
-                .onReceive(sizeCategoryPublisher) { _ in rowHeightStorage.clear() }
-            #endif
-            .overlay(SpanGridWidthListener(dynamicConfiguration: columnSizeStrategy.dynamicConfiguration)
-                .allowsHitTesting(false))
-            #if os(iOS) || os(macOS)
-                .overlay(SpanGridKeyboardNavigationShortcuts(
-                    options: keyboardNavigationOptions,
-                    callback: keyboardNavigationCoordinator.processDirection(columnSizeResult.columnCount)
-                ))
-            #endif
         }
+        .padding(.vertical, verticalPadding)
+        .background(SpanGridWidthReader())
+        .onPreferenceChange(SpanGridWidthReaderPreferenceKey.self, perform: {
+            self.width = $0.size.width
+        })
+        .onPreferenceChange(SpanGridRowPreferenceKey.self, perform: rowHeightStorage.set)
+        .onReceive(widthChangePublisher) { _ in rowHeightStorage.clear() }
+        #if os(iOS)
+            .onReceive(sizeCategoryPublisher) { _ in rowHeightStorage.clear() }
+        #endif
+        .overlay(SpanGridWidthListener(dynamicConfiguration: columnSizeStrategy.dynamicConfiguration)
+            .allowsHitTesting(false))
+        #if os(iOS) || os(macOS)
+            .overlay(SpanGridKeyboardNavigationShortcuts(
+                options: keyboardNavigationOptions,
+                callback: keyboardNavigationCoordinator.processDirection(columnSizeResult.columnCount)
+            ))
+        #endif
     }
     
     @ViewBuilder func createSpanView(viewModel: SpanGridData<Data>, columnSizeResult: SpanGridColumnSizeResult) -> some View {

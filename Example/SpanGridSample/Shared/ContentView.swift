@@ -20,12 +20,14 @@ struct ContentView: View {
             Text("Sidebar")
             #endif
             
-            SpanGrid(
-                dataSource: data,
-                rowSizeStrategy: .largest,
-                keyboardNavigationOptions: .init(enabled: true, discoverabiliyEnabled: true)
-            ) { viewModel, metadata in
-                GridItem(viewModel: viewModel, metadata: metadata)
+            ScrollView {
+                SpanGrid(
+                    dataSource: data,
+                    rowSizeStrategy: .largest,
+                    keyboardNavigationOptions: .init(enabled: true, discoverabiliyEnabled: true)
+                ) { viewModel, metadata in
+                    GridItem(viewModel: viewModel, metadata: metadata)
+                }
             }
         }
         #if os(iOS)
